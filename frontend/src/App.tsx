@@ -6,6 +6,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CleaningPage } from "@/pages/CleaningPage";
 import { ClearedEventsPage } from "@/pages/ClearedEventsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DetectPage } from "@/pages/DetectPage";
+import { DetectionHistoryPage } from "@/pages/DetectionHistoryPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NeedToInvestigatePage } from "@/pages/NeedToInvestigatePage";
 import { ReportsPage } from "@/pages/ReportsPage";
@@ -32,6 +34,10 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
+                {/* Phase 2 — Detection */}
+                <Route path="/detect" element={<DetectPage />} />
+                <Route path="/detection-history" element={<DetectionHistoryPage />} />
+                {/* Phase 1 — Queues */}
                 <Route path="/investigate" element={<NeedToInvestigatePage />} />
                 <Route path="/waiting" element={<WaitingPage />} />
                 <Route path="/cleaning" element={<CleaningPage />} />
@@ -48,3 +54,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
