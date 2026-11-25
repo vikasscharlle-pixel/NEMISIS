@@ -1,43 +1,69 @@
-import type { DetectionResponse } from "@/types/detection";
+export interface BoundingBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
 
-export type { DetectionResponse };
-
-export interface DetectionItem {
-  id: number;
-  source_type: "image" | "video";
-  source_path: string;
+export interface Detection {
+  id?: string;
   detection_class: string;
+  class?: string;
   confidence: number;
-  bounding_box: { x1: number; y1: number; x2: number; y2: number };
-  frame_index?: number | null;
-  video_id?: number | null;
-  annotated_image_path?: string | null;
-  notes?: string | null;
+  bounding_box: BoundingBox;
+  frame_index?: number;
+  source_path: string;
+  source_type: string;
   created_at: string;
 }
 
+export interface ReasoningEvent {
+  object: string;
+  event_type: string;
+  observations: number;
+  duration_frames: number;
+  movement_distance_pixels?: number;
+  net_displacement_pixels?: number;
+  direction?: string;
+  confidence: number;
+  explanation: string;
+}
+
 export interface ImageDetectionResponse {
-  source_path: string;
-  annotated_image_path?: string | null;
-  detections: DetectionItem[];
+  detections: Detection[];
   total_objects: number;
+  total_detections?: number;
   classes_found: Record<string, number>;
-  inference_time_ms: number;
   model_used: string;
+  inference_time_ms: number;
+  image_url?: string;
+  annotated_image?: string;
 }
 
 export interface VideoDetectionResponse {
-  source_path: string;
-  video_id?: number | null;
-  total_frames_processed: number;
+  detections: Detection[];
+  total_objects?: number;
   total_detections: number;
+  total_frames_processed: number;
   classes_found: Record<string, number>;
-  inference_time_ms: number;
   model_used: string;
-  sample_annotated_path?: string | null;
+  inference_time_ms: number;
+  reasoning_summary?: string;
+  reasoning_events?: ReasoningEvent[];
+  video_url?: string;
+  annotated_video?: string;
 }
 
 export interface DetectionListResponse {
-  items: DetectionItem[];
+  items: Detection[];
   total: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface DetectionResponse {
+  detections: Detection[];
+  total_detections?: number;
+  reasoning_summary?: string;
+  reasoning_events?: ReasoningEvent[];
 }

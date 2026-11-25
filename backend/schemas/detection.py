@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 
@@ -53,3 +53,5 @@ class VideoDetectionResponse(BaseModel):
     inference_time_ms: float
     model_used: str
     sample_annotated_path: Optional[str] = None
+    reasoning_summary: str = ""
+    reasoning_events: List[Dict[str, Any]] = []

@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session
 from core.config import get_settings
 from models.detection import Detection
 from schemas.detection import DetectionItem, ImageDetectionResponse, VideoDetectionResponse
+from services.reasoning_service import analyze_video_events
 
 logger = logging.getLogger("nemesis.detection")
 settings = get_settings()
@@ -347,6 +348,10 @@ def run_video_detection(
         video_path, sample_every_n_frames=sample_every_n_frames
     )
 
+    reasoning_result = analyze_video_events(raw_detections)
+    reasoning_events = reasoning_result.get("events", [])
+    reasoning_summary = reasoning_result.get("reasoning_summary", "")
+
     inference_ms = (time.perf_counter() - t0) * 1000
 
     # Persist
@@ -361,7 +366,7 @@ def run_video_detection(
             frame_index=det.get("frame_index"),
             video_id=video_row.id,
             annotated_image_path=str(sample_ann_path) if sample_ann_path else None,
-            notes=f"YOLOv11 | {filename} | frame {det.get('frame_index', '?')}",
+            notes=f"YOLOv11 | {filename} | frame {det.get('frame_index', '?')} | {reasoning_summary}",
         )
         db.add(row)
         db_rows.append(row)
@@ -380,6 +385,8 @@ def run_video_detection(
         inference_time_ms=round(inference_ms, 2),
         model_used=_MODEL_NAME if _yolo_available else "mock",
         sample_annotated_path=str(sample_ann_path) if sample_ann_path else None,
+        reasoning_summary=reasoning_summary,
+        reasoning_events=reasoning_events,
     )
 
 
