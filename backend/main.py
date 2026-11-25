@@ -7,7 +7,16 @@ from core.config import get_settings
 from core.redis_client import check_redis_health
 from database.session import check_db_health
 from middleware.logging_middleware import RequestLoggingMiddleware
-from routes import auth_router, dashboard_router, event_router, report_router, user_router
+
+from routes import (
+    auth_router,
+    dashboard_router,
+    detection_router,
+    event_router,
+    report_router,
+    user_router,
+    analytics_router,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,8 +29,9 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description=(
-        "NEMESIS-X Phase 1 Foundation API: JWT Authentication, RBAC, "
-        "Dashboard Metrics, Event Lifecycle, and Reporting."
+        "NEMESIS-X API: JWT Authentication, RBAC, "
+        "Dashboard Metrics, Event Lifecycle, Reporting, "
+        "Object Detection, Analytics and Intelligence."
     ),
     docs_url="/docs",
     redoc_url="/redoc",
@@ -30,6 +40,7 @@ app = FastAPI(
 
 # Middleware
 app.add_middleware(RequestLoggingMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -41,15 +52,21 @@ app.add_middleware(
 # Routers
 app.include_router(auth_router)
 app.include_router(dashboard_router)
+app.include_router(detection_router)
 app.include_router(event_router)
 app.include_router(report_router)
 app.include_router(user_router)
+app.include_router(analytics_router)
 
-
-@app.get("/health", tags=["Health"], summary="Check API, database, and cache health")
+@app.get(
+    "/health",
+    tags=["Health"],
+    summary="Check API, database, and cache health",
+)
 def health_check() -> dict[str, str]:
     db_status = check_db_health()
     redis_status = check_redis_health()
+
     return {
         "status": "ok" if db_status == "connected" else "degraded",
         "version": settings.APP_VERSION,

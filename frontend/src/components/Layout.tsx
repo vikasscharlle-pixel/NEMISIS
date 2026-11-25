@@ -5,9 +5,11 @@ import {
   CheckCircle2,
   Clock,
   FileBarChart2,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
+  ScanSearch,
   Settings,
   Shield,
   Trash2,
@@ -20,6 +22,8 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/detect", label: "Object Detection", icon: ScanSearch },
+  { to: "/detection-history", label: "Detection History", icon: History },
   { to: "/investigate", label: "Need To Investigate", icon: AlertTriangle },
   { to: "/waiting", label: "Waiting", icon: Clock },
   { to: "/cleaning", label: "Cleaning", icon: Trash2 },

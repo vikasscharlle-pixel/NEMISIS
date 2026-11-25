@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # Database & Cache
-    DATABASE_URL: str = "postgresql+psycopg2://nemesis:nemesis_secret_password@localhost:5432/nemesis_x"
+    DATABASE_URL: str = "sqlite:///./nemesis_dev.db"
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT Security
@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # CORS
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5175,http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
