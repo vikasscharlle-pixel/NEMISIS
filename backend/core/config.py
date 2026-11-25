@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # Database & Cache
-    DATABASE_URL: str = "postgresql+psycopg2://nemesis:nemesis_secret_password@localhost:5432/nemesis_x"
+    DATABASE_URL: str = "sqlite:///./nemesis_dev.db"
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # JWT Security
