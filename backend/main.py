@@ -5,7 +5,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import get_settings
 from core.redis_client import check_redis_health
-from database.session import check_db_health
+
+from database.base import Base
+from database.session import engine, check_db_health
+
+# Import models so SQLAlchemy registers all tables
+import models
+
 from middleware.logging_middleware import RequestLoggingMiddleware
 
 from routes import (
@@ -18,10 +24,14 @@ from routes import (
     analytics_router,
 )
 
+from intelligence.router import router as intelligence_router
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
+
+logger = logging.getLogger("nemesis")
 
 settings = get_settings()
 
@@ -38,6 +48,17 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+
+@app.on_event("startup")
+def initialize_database():
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables initialized successfully.")
+    except Exception as exc:
+        logger.exception("Database initialization failed: %s", exc)
+        raise
+
+
 # Middleware
 app.add_middleware(RequestLoggingMiddleware)
 
@@ -49,7 +70,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
+# Existing Routers
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(detection_router)
@@ -57,6 +78,10 @@ app.include_router(event_router)
 app.include_router(report_router)
 app.include_router(user_router)
 app.include_router(analytics_router)
+
+# Intelligence Router
+app.include_router(intelligence_router)
+
 
 @app.get(
     "/health",
