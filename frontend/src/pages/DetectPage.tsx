@@ -21,10 +21,9 @@ export function DetectPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const loopRef = useRef<boolean>(false);
-  const busyRef = useRef<boolean>(false);
+  const loopRef = useRef(false);
+  const busyRef = useRef(false);
 
-  // Start camera
   const startCamera = async () => {
     try {
       setCameraError(null);
@@ -42,12 +41,11 @@ export function DetectPage() {
       }
 
       setCameraActive(true);
-    } catch (error) {
+    } catch {
       setCameraError("Unable to access camera. Check camera permissions.");
     }
   };
 
-  // Stop camera and live analysis
   const stopCamera = () => {
     stopLiveAnalysis();
 
@@ -59,16 +57,14 @@ export function DetectPage() {
     }
 
     setCameraActive(false);
+    setLiveResults(null);
   };
 
-  // Stop continuous analysis
   const stopLiveAnalysis = () => {
     loopRef.current = false;
-    busyRef.current = false;
     setLiveAnalysis(false);
   };
 
-  // Live frame processing loop
   const analyzeLiveFrame = async () => {
     if (!loopRef.current || busyRef.current) return;
 
@@ -119,7 +115,7 @@ export function DetectPage() {
         setLiveResults(response.data);
         setLiveError(null);
       }
-    } catch (error) {
+    } catch {
       if (loopRef.current) {
         setLiveError("Frame analysis failed. Check backend connection.");
       }
@@ -132,7 +128,6 @@ export function DetectPage() {
     }
   };
 
-  // Start continuous analysis
   const startLiveAnalysis = () => {
     if (!cameraActive || loopRef.current) return;
 
@@ -145,7 +140,6 @@ export function DetectPage() {
     analyzeLiveFrame();
   };
 
-  // File selection
   const handleFile = (selectedFile: File | null) => {
     setFile(selectedFile);
     setUploadResults(null);
@@ -161,7 +155,6 @@ export function DetectPage() {
     }
   };
 
-  // Image/video upload detection
   const handleDetect = async () => {
     if (!file) return;
 
@@ -184,21 +177,23 @@ export function DetectPage() {
       });
 
       setUploadResults(response.data);
-    } catch (error) {
-      alert("Detection failed. Check backend connection.");
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.detail ||
+        "Detection failed. Check backend connection.";
+
+      alert(message);
     } finally {
       setLoading(false);
     }
   };
 
-  // Attach camera stream to video
   useEffect(() => {
     if (streamRef.current && videoRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
   }, [cameraActive]);
 
-  // Cleanup when page is removed
   useEffect(() => {
     return () => {
       loopRef.current = false;
@@ -211,11 +206,16 @@ export function DetectPage() {
     };
   }, [preview]);
 
+  const detections = liveResults?.detections ?? [];
+
+  const classCounts = uploadResults?.classes_found ?? {};
+  const reasoningEvents = uploadResults?.reasoning_events ?? [];
+
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-6 p-4 text-white">
       <div>
         <h1 className="text-2xl font-bold">Video Intelligence</h1>
-        <p className="text-gray-500">
+        <p className="text-gray-400">
           Image, video and live camera analysis
         </p>
       </div>
@@ -225,7 +225,9 @@ export function DetectPage() {
         <button
           onClick={() => setMode("image")}
           className={`rounded-lg border px-4 py-2 ${
-            mode === "image" ? "bg-blue-600 text-white" : ""
+            mode === "image"
+              ? "border-blue-500 bg-blue-600 text-white"
+              : "border-gray-700 bg-gray-900"
           }`}
         >
           Image
@@ -234,7 +236,9 @@ export function DetectPage() {
         <button
           onClick={() => setMode("video")}
           className={`rounded-lg border px-4 py-2 ${
-            mode === "video" ? "bg-blue-600 text-white" : ""
+            mode === "video"
+              ? "border-blue-500 bg-blue-600 text-white"
+              : "border-gray-700 bg-gray-900"
           }`}
         >
           Video
@@ -242,23 +246,78 @@ export function DetectPage() {
       </div>
 
       {/* Live Camera */}
-      <div className="space-y-4 rounded-xl border p-5">
+      <div className="space-y-4 rounded-xl border border-gray-800 bg-gray-950 p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Live Camera</h2>
 
-          <span className={cameraActive ? "text-green-600" : "text-gray-500"}>
+          <span className={cameraActive ? "text-green-400" : "text-gray-500"}>
             {cameraActive ? "Camera Active" : "Camera Offline"}
           </span>
         </div>
 
-        <div className="aspect-video overflow-hidden rounded-xl bg-black">
+        <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="h-full w-full object-contain"
+            className="absolute inset-0 h-full w-full object-contain"
           />
+
+          {liveResults && videoRef.current && (
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox={`0 ${0} ${
+                videoRef.current.videoWidth || 1280
+              } ${videoRef.current.videoHeight || 720}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {detections.map((detection: any, index: number) => {
+                const box = detection.bounding_box;
+                if (!box) return null;
+
+                const label =
+                  detection.detection_class ??
+                  detection.class_name ??
+                  "Object";
+
+                const confidence = detection.confidence ?? 0;
+
+                return (
+                  <g key={index}>
+                    <rect
+                      x={box.x1}
+                      y={box.y1}
+                      width={box.x2 - box.x1}
+                      height={box.y2 - box.y1}
+                      fill="none"
+                      stroke="#00E5FF"
+                      strokeWidth="4"
+                    />
+
+                    <rect
+                      x={box.x1}
+                      y={Math.max(box.y1 - 30, 0)}
+                      width={Math.max(label.length * 12 + 90, 140)}
+                      height="30"
+                      fill="#00B8D4"
+                      rx="4"
+                    />
+
+                    <text
+                      x={box.x1 + 8}
+                      y={Math.max(box.y1 - 10, 20)}
+                      fill="white"
+                      fontSize="22"
+                      fontWeight="bold"
+                    >
+                      {label} {(confidence * 100).toFixed(0)}%
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          )}
         </div>
 
         <canvas ref={canvasRef} className="hidden" />
@@ -274,7 +333,7 @@ export function DetectPage() {
           ) : (
             <button
               onClick={stopCamera}
-              className="rounded-lg border px-4 py-2"
+              className="rounded-lg border border-gray-700 px-4 py-2"
             >
               Stop Camera
             </button>
@@ -298,107 +357,72 @@ export function DetectPage() {
           )}
         </div>
 
-        {cameraError && (
-          <p className="text-red-500">{cameraError}</p>
-        )}
+        {cameraError && <p className="text-red-400">{cameraError}</p>}
 
         {liveAnalysis && (
-          <p className="font-medium text-green-600">
+          <p className="font-medium text-green-400">
             Live AI Analysis Running
           </p>
         )}
 
-        {liveError && (
-          <p className="text-red-500">{liveError}</p>
-        )}
+        {liveError && <p className="text-red-400">{liveError}</p>}
       </div>
 
-      {/* Live results */}
-{liveResults && (
-  <div className="space-y-4 rounded-xl border border-gray-700 bg-gray-900 p-5">
-    <h2 className="text-xl font-bold text-white">
-      Live AI Analysis
-    </h2>
-
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-      <div className="rounded-lg bg-gray-800 p-4">
-        <p className="text-sm text-gray-400">Objects Detected</p>
-        <p className="mt-2 text-2xl font-bold text-white">
-          {liveResults.total_objects ?? 0}
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-gray-800 p-4">
-        <p className="text-sm text-gray-400">Processing Time</p>
-        <p className="mt-2 text-2xl font-bold text-green-400">
-          {liveResults.inference_time_ms ?? 0} ms
-        </p>
-      </div>
-
-      <div className="rounded-lg bg-gray-800 p-4">
-        <p className="text-sm text-gray-400">AI Model</p>
-        <p className="mt-2 text-lg font-bold text-blue-400">
-          {liveResults.model_used ?? "YOLO"}
-        </p>
-      </div>
-    </div>
-
-    <div className="rounded-lg bg-gray-800 p-4">
-      <h3 className="mb-3 font-semibold text-white">
-        Detected Objects
-      </h3>
-
-      {liveResults.total_objects > 0 ? (
-        <div className="space-y-3">
-          {liveResults.detections?.map((detection: any, index: number) => (
-            <div
-              key={index}
-              className="flex items-center justify-between rounded-lg border border-gray-700 p-3"
-            >
-              <span className="font-medium text-white">
-                {detection.detection_class ?? detection.class_name ?? "Object"}
-              </span>
-
-              <span className="rounded-full bg-green-900 px-3 py-1 text-sm text-green-300">
-                {((detection.confidence ?? 0) * 100).toFixed(1)}%
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-gray-400">
-          No objects detected in the current frame.
-        </p>
-      )}
-    </div>
-
-    <div className="rounded-lg border border-blue-900 bg-blue-950/30 p-4">
-      <p className="font-medium text-blue-300">
-        Frame Analysis Status
-      </p>
-
-      <p className="mt-2 text-sm text-gray-300">
-        {liveResults.total_objects > 0
-          ? "Objects are being detected and analysed by the vision model."
-          : "The camera frame was processed successfully. Waiting for detectable objects."}
-      </p>
-    </div>
-  </div>
-)}
+      {/* Live Results */}
       {liveResults && (
-        <div className="space-y-3 rounded-xl border p-5">
-          <h2 className="text-lg font-semibold">
-            Latest Live Detection
-          </h2>
+        <div className="space-y-4 rounded-xl border border-gray-800 bg-gray-950 p-5">
+          <h2 className="text-xl font-bold">Live AI Analysis</h2>
 
-         <pre className="max-h-96 overflow-auto rounded-lg bg-gray-900 text-green-400 p-4 text-sm">
-          {JSON.stringify(liveResults, null, 2)}
-          </pre>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <Metric
+              label="Objects Detected"
+              value={liveResults.total_objects ?? 0}
+            />
+
+            <Metric
+              label="Processing Time"
+              value={`${liveResults.inference_time_ms ?? 0} ms`}
+            />
+
+            <Metric
+              label="AI Model"
+              value={liveResults.model_used ?? "YOLO"}
+            />
+          </div>
+
+          <div className="rounded-lg border border-gray-800 p-4">
+            <h3 className="mb-3 font-semibold">Detected Objects</h3>
+
+            {liveResults.total_objects > 0 ? (
+              <div className="space-y-2">
+                {detections.map((detection: any, index: number) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg border border-gray-800 p-3"
+                  >
+                    <span>
+                      {detection.detection_class ??
+                        detection.class_name ??
+                        "Object"}
+                    </span>
+
+                    <span className="rounded-full bg-green-950 px-3 py-1 text-sm text-green-300">
+                      {((detection.confidence ?? 0) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400">
+                No objects detected in the current frame.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
       {/* Upload */}
-      <div className="space-y-4 rounded-xl border p-5">
+      <div className="space-y-4 rounded-xl border border-gray-800 bg-gray-950 p-5">
         <h2 className="text-lg font-semibold">
           Upload {mode === "image" ? "Image" : "Video"}
         </h2>
@@ -407,6 +431,7 @@ export function DetectPage() {
           type="file"
           accept={mode === "image" ? "image/*" : "video/*"}
           onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+          className="block w-full text-sm text-gray-300"
         />
 
         {preview && mode === "image" && (
@@ -434,20 +459,192 @@ export function DetectPage() {
         </button>
       </div>
 
-      {/* Upload results */}
+      {/* Upload Results Dashboard */}
       {uploadResults && (
-        <div className="space-y-3 rounded-xl border p-5">
-          <h2 className="text-lg font-semibold">Detection Results</h2>
+        <div className="space-y-5 rounded-xl border border-gray-800 bg-gray-950 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Analysis Results</h2>
+            <span className="rounded-full bg-green-950 px-3 py-1 text-sm text-green-400">
+              Analysis Complete
+            </span>
+          </div>
 
-          <pre className="max-h-96 overflow-auto rounded-lg bg-gray-100 p-4 text-sm">
-            {JSON.stringify(uploadResults, null, 2)}
-          </pre>
+          {/* Metrics */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Metric
+              label={mode === "video" ? "Frames Processed" : "Objects Detected"}
+              value={
+                mode === "video"
+                  ? uploadResults.total_frames_processed ?? 0
+                  : uploadResults.total_objects ?? 0
+              }
+            />
+
+            <Metric
+              label="Total Detections"
+              value={
+                mode === "video"
+                  ? uploadResults.total_detections ?? 0
+                  : uploadResults.total_objects ?? 0
+              }
+            />
+
+            <Metric
+              label="Inference Time"
+              value={`${uploadResults.inference_time_ms ?? 0} ms`}
+            />
+
+            <Metric
+              label="AI Model"
+              value={uploadResults.model_used ?? "YOLO"}
+            />
+          </div>
+
+          {/* Class Breakdown */}
+          <div className="rounded-xl border border-gray-800 p-4">
+            <h3 className="mb-4 font-semibold">Detected Objects</h3>
+
+            {Object.keys(classCounts).length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                {Object.entries(classCounts).map(([name, count]: any) => (
+                  <div
+                    key={name}
+                    className="rounded-lg border border-gray-800 bg-gray-900 p-4"
+                  >
+                    <p className="capitalize text-gray-400">{name}</p>
+                    <p className="mt-1 text-2xl font-bold text-blue-400">
+                      {count}
+                    </p>
+                    <p className="text-xs text-gray-500">detections</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400">No objects detected.</p>
+            )}
+          </div>
+
+          {/* Reasoning Summary */}
+          {uploadResults.reasoning_summary && (
+            <div className="rounded-xl border border-blue-900 bg-blue-950/30 p-4">
+              <h3 className="font-semibold text-blue-300">
+                AI Video Analysis
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-300">
+                {uploadResults.reasoning_summary}
+              </p>
+            </div>
+          )}
+
+          {/* Reasoning Events */}
+          {reasoningEvents.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold">Observed Events</h3>
+
+              {reasoningEvents.map((event: any, index: number) => (
+                <div
+                  key={index}
+                  className="space-y-2 rounded-xl border border-gray-800 bg-gray-900 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="font-semibold text-blue-300">
+                      {event.event_type ??
+                        event.type ??
+                        "Observation"}
+                    </h4>
+
+                    {event.object && (
+                      <span className="rounded-full bg-gray-800 px-3 py-1 text-sm capitalize text-gray-300">
+                        {event.object}
+                      </span>
+                    )}
+                  </div>
+
+                  {event.description && (
+                    <p className="text-sm text-gray-300">
+                      {event.description}
+                    </p>
+                  )}
+
+                  {event.observations !== undefined && (
+                    <p className="text-sm text-gray-400">
+                      Observations: {event.observations}
+                    </p>
+                  )}
+
+                  {event.duration_frames !== undefined && (
+                    <p className="text-sm text-gray-400">
+                      Duration: {event.duration_frames} frames
+                    </p>
+                  )}
+
+                  {event.details && (
+                    <p className="text-sm text-gray-400">
+                      {typeof event.details === "string"
+                        ? event.details
+                        : JSON.stringify(event.details)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Annotated Evidence */}
+          {(uploadResults.sample_annotated_path ||
+            uploadResults.annotated_image_path) && (
+            <div className="rounded-xl border border-gray-800 p-4">
+              <h3 className="font-semibold">Annotated Evidence</h3>
+              <p className="mt-2 break-all text-sm text-gray-400">
+                {uploadResults.sample_annotated_path ??
+                  uploadResults.annotated_image_path}
+              </p>
+              <p className="mt-2 text-xs text-gray-500">
+                Evidence image generated by the detection pipeline.
+              </p>
+            </div>
+          )}
+
+          {/* Image-specific detections */}
+          {mode === "image" && uploadResults.detections?.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-semibold">Detection Details</h3>
+
+              {uploadResults.detections.map((detection: any, index: number) => (
+                <div
+                  key={index}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-800 p-3"
+                >
+                  <span className="capitalize">
+                    {detection.detection_class ?? detection.class_name}
+                  </span>
+
+                  <span className="text-green-400">
+                    {((detection.confidence ?? 0) * 100).toFixed(1)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">
+            AI observations are automated and should be reviewed by a human.
+          </p>
         </div>
       )}
 
       <p className="text-sm text-gray-500">
         AI observations are automated and should be reviewed by a human.
       </p>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+      <p className="text-sm text-gray-400">{label}</p>
+      <p className="mt-2 break-words text-xl font-bold text-white">{value}</p>
     </div>
   );
 }
